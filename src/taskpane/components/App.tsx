@@ -71,7 +71,7 @@ const useStyles = makeStyles({
   },
 });
 
-const App: React.FC<AppProps> = ({ title }) => {
+const App: React.FC<AppProps> = () => {
   const styles = useStyles();
   const [jsonResult, setJsonResult] = React.useState<string>("");
   const [selectedTab, setSelectedTab] = React.useState<string>("export");
@@ -431,7 +431,6 @@ const App: React.FC<AppProps> = ({ title }) => {
 
   return (
     <div className={styles.root}>
-      <h1>{title}</h1>
       <TabList selectedValue={selectedTab} onTabSelect={handleTabSelect}>
         <Tab value="export">Export BOM</Tab>
         <Tab value="import">Import Data</Tab>
