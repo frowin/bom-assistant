@@ -17,7 +17,7 @@ This is a simple Excel add-in that allows you to extract a bill of materials (BO
 
 - Extract a list of components from an Excel sheet in JSON format
 - Import component attributes from JSON to add/or update existing components
-- Taylored to a tool called `pcbbuddy` which can help ordering PCBs and consumes JSON and fetches component data as stock, price, availability
+- Taylored to a tool called `pcbbuddy` which can help ordering PCBs and consumes JSON and fetches component data as stock, price, availability.
 
 ## Installation
 
