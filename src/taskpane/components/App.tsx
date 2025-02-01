@@ -84,6 +84,17 @@ const App: React.FC<AppProps> = ({ title }) => {
   let headerRow = 0;
   let lastColumn = 0;
 
+  React.useEffect(() => {
+    // Clear formatting when component mounts
+    Excel.run(async (context) => {
+      const sheet = context.workbook.worksheets.getActiveWorksheet();
+      const entireSheet = sheet.getUsedRange();
+      entireSheet.format.fill.clear();
+      entireSheet.format.font.color = "black";
+      await context.sync();
+    }).catch((error) => console.error("Error clearing formatting:", error));
+  }, []);
+
   const copyToClipboard = () => {
     navigator.clipboard.writeText(jsonResult);
   };
@@ -141,6 +152,8 @@ const App: React.FC<AppProps> = ({ title }) => {
       const usedRange = sheet.getUsedRange();
       usedRange.load(["values", "rowCount", "columnCount"]);
       await context.sync();
+      addDebugLog(`Row count: ${usedRange.rowCount}`);
+      addDebugLog(`Column count: ${usedRange.columnCount}`);
 
       if (!usedRange || !usedRange.values) {
         addDebugLog("ERROR: Worksheet is empty");
@@ -207,21 +220,21 @@ const App: React.FC<AppProps> = ({ title }) => {
         await context.sync();
         addDebugLog("Cleared all background colors");
 
+        const dataRange = sheet.getRangeByIndexes(headerRow, 0, 100, lastColumn);
+        dataRange.load("values");
+        await context.sync();
         // Color the header row
         const headerRange = sheet.getRangeByIndexes(headerRow, 0, 1, lastColumn);
+        await context.sync();
         headerRange.format.fill.color = "#4472C4";
         headerRange.format.font.color = "white";
-        await context.sync();
         addDebugLog("Applied header formatting");
+
+        await context.sync();
 
         entireSheet.load("values");
         await context.sync();
         addDebugLog("Loaded entire sheet values");
-
-        const dataRange = sheet.getRangeByIndexes(headerRow, 0, 100, lastColumn);
-        dataRange.load("values");
-        await context.sync();
-        addDebugLog("Loaded data range values");
 
         const headers = dataRange.values[0].map((h) =>
           h === null || h === undefined ? "" : String(h).toLowerCase().trim()
@@ -300,16 +313,37 @@ const App: React.FC<AppProps> = ({ title }) => {
       addDebugLog(`Working with headerRow: ${headerRow}, lastColumn: ${lastColumn}`);
       await Excel.run(async (context) => {
         const sheet = context.workbook.worksheets.getActiveWorksheet();
-        const entireRange = sheet.getUsedRange();
-        entireRange.load("values");
+
+        // Clear ALL background colors and font formatting in the sheet first
+        const entireSheet = sheet.getUsedRange();
+        entireSheet.format.fill.clear();
+        entireSheet.format.font.color = "black";
         await context.sync();
 
-        if (!entireRange.values || entireRange.values.length < headerRow + 1) {
+        // Load the range to get the row count
+        entireSheet.load("rowCount");
+        await context.sync();
+
+        // Color the header row
+        const headerRange = sheet.getRangeByIndexes(headerRow, 0, 1, lastColumn);
+        headerRange.format.fill.color = "#4472C4"; // Darker blue for header
+        headerRange.format.font.color = "white";
+        await context.sync();
+
+        // Color the data rows that will be exported (from header to last used row)
+        const dataRange = sheet.getRangeByIndexes(headerRow + 1, 0, entireSheet.rowCount - headerRow - 1, lastColumn);
+        dataRange.format.fill.color = "#E6F3FF"; // Light blue for data
+        await context.sync();
+
+        entireSheet.load("values");
+        await context.sync();
+
+        if (!entireSheet.values || entireSheet.values.length < headerRow + 1) {
           setJsonResult("Not enough data in worksheet");
           return;
         }
 
-        const headers = entireRange.values[headerRow].map((h: any) =>
+        const headers = entireSheet.values[headerRow].map((h: any) =>
           h === null || h === undefined ? "" : String(h).toLowerCase().trim()
         );
 
@@ -319,7 +353,7 @@ const App: React.FC<AppProps> = ({ title }) => {
         );
         addDebugLog(`LCSC column index: ${lcscColumnIndex}`);
 
-        const data = entireRange.values
+        const data = entireSheet.values
           .slice(headerRow + 1)
           .filter((row) => row.some((cell) => cell !== "" && cell !== null && cell !== undefined));
 
