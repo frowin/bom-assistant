@@ -34,4 +34,4 @@ npm run build
 
 ## Deploy
 
-- create GitHub Pages and Actions for deployment
+- create GitHub Pages and Actions for deployment.
