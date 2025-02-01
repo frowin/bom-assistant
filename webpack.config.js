@@ -6,7 +6,7 @@ const HtmlWebpackPlugin = require("html-webpack-plugin");
 const webpack = require("webpack");
 
 const urlDev = "https://localhost:3000/";
-const urlProd = "https://frowin.github.io/bom-assistant/"; // Change this to your GitHub Pages URL
+const urlProd = "https://frowin.github.io/bom-assistant/";
 
 async function getHttpsOptions() {
   const httpsOptions = await devCerts.getHttpsServerOptions();
@@ -60,14 +60,11 @@ module.exports = async (env, options) => {
       new HtmlWebpackPlugin({
         filename: "taskpane.html",
         template: "./src/taskpane/taskpane.html",
-        chunks: ["polyfill", "vendor", "taskpane"],
+        chunks: ["polyfill", "taskpane"],
+        url: dev ? urlDev : urlProd,
       }),
       new CopyWebpackPlugin({
         patterns: [
-          {
-            from: "assets/*",
-            to: "assets/[name][ext][query]",
-          },
           {
             from: "manifest*.xml",
             to: "[name]" + "[ext]",
@@ -75,9 +72,16 @@ module.exports = async (env, options) => {
               if (dev) {
                 return content;
               } else {
-                return content.toString().replace(new RegExp(urlDev, "g"), urlProd);
+                return content
+                  .toString()
+                  .replace(new RegExp(urlDev, "g"), urlProd)
+                  .replace(/(https:\/\/|http:\/\/)localhost:3000/g, urlProd.slice(0, -1));
               }
             },
+          },
+          {
+            from: "assets/*",
+            to: "assets/[name][ext]",
           },
         ],
       }),
