@@ -433,7 +433,7 @@ const App: React.FC<AppProps> = () => {
     <div className={styles.root}>
       <TabList selectedValue={selectedTab} onTabSelect={handleTabSelect}>
         <Tab value="export">Export BOM</Tab>
-        <Tab value="import">Import Data</Tab>
+        <Tab value="import">Update BOM</Tab>
       </TabList>
 
       {selectedTab === "export" ? (
