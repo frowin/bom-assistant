@@ -1,13 +1,5 @@
 import * as React from "react";
-import {
-  makeStyles,
-  Button,
-  Text,
-  Tab,
-  TabList,
-  SelectTabEvent,
-  SelectTabData,
-} from "@fluentui/react-components";
+import { makeStyles, Button, Tab, TabList, SelectTabEvent, SelectTabData } from "@fluentui/react-components";
 
 interface AppProps {
   title: string;
@@ -30,7 +22,9 @@ interface ImportData {
 
 const useStyles = makeStyles({
   root: {
-    padding: "20px",
+    padding: "10px",
+    backgroundColor: "#fcfcfc",
+    minHeight: "100vh",
   },
   button: {
     marginTop: "20px",
@@ -39,9 +33,15 @@ const useStyles = makeStyles({
     marginTop: "20px",
     whiteSpace: "pre-wrap",
   },
+
   textarea: {
+    minHeight: "100px",
     width: "100%",
-    marginBottom: "10px",
+    marginTop: "10px",
+    boxSizing: "border-box",
+    cursor: "text",
+    userSelect: "text",
+    WebkitUserSelect: "text",
   },
   checkboxContainer: {
     display: "flex",
@@ -51,18 +51,23 @@ const useStyles = makeStyles({
   },
   importTextarea: {
     width: "100%",
-    height: "200px",
+    height: "100px",
     marginBottom: "10px",
+    boxSizing: "border-box",
+    cursor: "text",
+    userSelect: "text",
+    WebkitUserSelect: "text",
   },
   debugOutput: {
     width: "100%",
-    height: "100px",
+    height: "200px",
     marginTop: "20px",
     backgroundColor: "#f0f0f0",
     fontFamily: "monospace",
     padding: "8px",
     overflow: "auto",
     border: "1px solid #ccc",
+    boxSizing: "border-box",
   },
 });
 
@@ -92,9 +97,7 @@ const App: React.FC<AppProps> = ({ title }) => {
     try {
       const parsed: ImportData[] = JSON.parse(e.target.value);
       if (parsed.length > 0) {
-        const fields = Object.keys(parsed[0]).filter(
-          (key) => key !== "attributes"
-        );
+        const fields = Object.keys(parsed[0]).filter((key) => key !== "attributes");
         setAvailableFields(fields);
         const initialSelectedFields = fields.reduce(
           (acc, field) => ({
@@ -108,6 +111,9 @@ const App: React.FC<AppProps> = ({ title }) => {
               "status",
               "error",
               "lastOrdered",
+              "startNumber",
+              "jlcGoodsPrice",
+              "gsGoodsPrice",
             ].includes(field),
           }),
           {}
@@ -129,11 +135,11 @@ const App: React.FC<AppProps> = ({ title }) => {
   const initializeHeaderRow = async () => {
     let foundHeaderRow = 0;
     let foundLastColumn = 0;
-    
+
     await Excel.run(async (context) => {
       const sheet = context.workbook.worksheets.getActiveWorksheet();
       const usedRange = sheet.getUsedRange();
-      usedRange.load("values");
+      usedRange.load(["values", "rowCount", "columnCount"]);
       await context.sync();
 
       if (!usedRange || !usedRange.values) {
@@ -144,7 +150,7 @@ const App: React.FC<AppProps> = ({ title }) => {
       // Find the header row by looking for 'designators' in the first column only
       for (let i = 0; i < usedRange.values.length; i++) {
         const row = usedRange.values[i];
-        if (row && row[0] && String(row[0]).toLowerCase() === 'designators') {
+        if (row && row[0] && String(row[0]).toLowerCase() === "designators") {
           foundHeaderRow = i;
           foundLastColumn = row.length;
           break;
@@ -159,7 +165,20 @@ const App: React.FC<AppProps> = ({ title }) => {
   };
 
   const addDebugLog = (message: string) => {
-    setDebugLog((prev) => [...prev, `${new Date().toISOString()}: ${message}`]);
+    setDebugLog((prev) => {
+      const newLogs = [
+        ...prev,
+        `${new Date().toLocaleTimeString("de-DE", { timeZone: "Europe/Berlin" })} - ${message}`,
+      ];
+      // Auto-scroll after state update
+      setTimeout(() => {
+        const debugElement = document.querySelector(`.${styles.debugOutput}`);
+        if (debugElement) {
+          debugElement.scrollTop = debugElement.scrollHeight;
+        }
+      }, 0);
+      return newLogs;
+    });
   };
 
   const applyImportData = async () => {
@@ -167,9 +186,9 @@ const App: React.FC<AppProps> = ({ title }) => {
       const { headerRow: foundHeaderRow, lastColumn: foundLastColumn } = await initializeHeaderRow();
       headerRow = foundHeaderRow;
       lastColumn = foundLastColumn;
-      
+
       addDebugLog(`Working with headerRow: ${headerRow}, lastColumn: ${lastColumn}`);
-      
+
       if (headerRow === 0) {
         addDebugLog("ERROR: Could not find header row with LCSC column!");
         return;
@@ -218,12 +237,7 @@ const App: React.FC<AppProps> = ({ title }) => {
         addDebugLog(`New columns to add: ${newColumns.join(", ")}`);
 
         if (newColumns.length > 0) {
-          const newHeadersRange = sheet.getRangeByIndexes(
-            headerRow,
-            lastColumn,
-            1,
-            newColumns.length
-          );
+          const newHeadersRange = sheet.getRangeByIndexes(headerRow, lastColumn, 1, newColumns.length);
           newHeadersRange.values = [newColumns];
           await context.sync();
         }
@@ -246,38 +260,22 @@ const App: React.FC<AppProps> = ({ title }) => {
             // Color the matched row green
             const updatedRowRange = sheet.getRangeByIndexes(actualRowIndex, 0, 1, lastColumn);
             updatedRowRange.format.fill.color = "#E2EFDA";
-            await context.sync();
 
             Object.keys(selectedFields).forEach((field) => {
               if (selectedFields[field]) {
-                const headerIndex = headers.findIndex(
-                  (h) => h === field.toLowerCase()
-                );
+                const headerIndex = headers.findIndex((h) => h === field.toLowerCase());
                 if (headerIndex !== -1) {
-                  const range = sheet.getRangeByIndexes(
-                    actualRowIndex,
-                    headerIndex,
-                    1,
-                    1
-                  );
+                  const range = sheet.getRangeByIndexes(actualRowIndex, headerIndex, 1, 1);
                   range.values = [[item[field as keyof ImportData]]];
                 }
               }
             });
 
             if (newColumns.length > 0) {
-              const newDataRange = sheet.getRangeByIndexes(
-                actualRowIndex,
-                lastColumn,
-                1,
-                newColumns.length
-              );
-              const newValues = newColumns.map(
-                (col) => item[col as keyof ImportData]
-              );
+              const newDataRange = sheet.getRangeByIndexes(actualRowIndex, lastColumn, 1, newColumns.length);
+              const newValues = newColumns.map((col) => item[col as keyof ImportData]);
               newDataRange.values = [newValues];
             }
-            await context.sync();
           } else {
             addDebugLog(`No match found for LCSC code: ${item.lcscPartNumber}`);
           }
@@ -298,7 +296,7 @@ const App: React.FC<AppProps> = ({ title }) => {
       const { headerRow: foundHeaderRow, lastColumn: foundLastColumn } = await initializeHeaderRow();
       headerRow = foundHeaderRow;
       lastColumn = foundLastColumn;
-      
+
       addDebugLog(`Working with headerRow: ${headerRow}, lastColumn: ${lastColumn}`);
       await Excel.run(async (context) => {
         const sheet = context.workbook.worksheets.getActiveWorksheet();
@@ -314,9 +312,9 @@ const App: React.FC<AppProps> = ({ title }) => {
         const headers = entireRange.values[headerRow].map((h: any) =>
           h === null || h === undefined ? "" : String(h).toLowerCase().trim()
         );
-        
-        addDebugLog(`Found headers: ${headers.join(', ')}`);
-        const lcscColumnIndex = headers.findIndex(h => 
+
+        addDebugLog(`Found headers: ${headers.join(", ")}`);
+        const lcscColumnIndex = headers.findIndex((h) =>
           ["lcsc", "lcsc #", "lcscpartnumber", "lcsc part number"].includes(h)
         );
         addDebugLog(`LCSC column index: ${lcscColumnIndex}`);
@@ -324,29 +322,34 @@ const App: React.FC<AppProps> = ({ title }) => {
         const data = entireRange.values
           .slice(headerRow + 1)
           .filter((row) => row.some((cell) => cell !== "" && cell !== null && cell !== undefined));
-        
+
         addDebugLog(`Total rows after initial filter: ${data.length}`);
 
         const components = data
           .filter((row) => {
             const designator = getCellValue(row, headers, ["designators", "designator"]);
             const lcscPart = row[lcscColumnIndex] ? String(row[lcscColumnIndex]).trim() : "";
-            
-            addDebugLog(`Row data - Designator: ${designator}, LCSC (raw): ${row[lcscColumnIndex]}, LCSC (processed): ${lcscPart}`);
-            
-            const isValid = designator && 
-                   designator.trim() !== "" && 
-                   lcscPart !== "";
-                   
+
+            addDebugLog(
+              `Row data - Designator: ${designator}, LCSC (raw): ${row[lcscColumnIndex]}, LCSC (processed): ${lcscPart}`
+            );
+
+            const isValid = designator && designator.trim() !== "" && lcscPart !== "";
+
             if (!isValid) {
-              addDebugLog(`Skipping row - Invalid conditions: ${
-                !designator ? "No designator" :
-                designator.trim() === "" ? "Empty designator" :
-                lcscPart === "" ? "Empty LCSC part" :
-                "Unknown reason"
-              }`);
+              addDebugLog(
+                `Skipping row - Invalid conditions: ${
+                  !designator
+                    ? "No designator"
+                    : designator.trim() === ""
+                      ? "Empty designator"
+                      : lcscPart === ""
+                        ? "Empty LCSC part"
+                        : "Unknown reason"
+                }`
+              );
             }
-            
+
             return isValid;
           })
           .map((row) => ({
@@ -382,11 +385,7 @@ const App: React.FC<AppProps> = ({ title }) => {
     }
   };
 
-  const getCellValue = (
-    row: any[],
-    headers: string[],
-    possibleNames: string[]
-  ): string => {
+  const getCellValue = (row: any[], headers: string[], possibleNames: string[]): string => {
     for (const name of possibleNames) {
       const index = headers.indexOf(name);
       if (index !== -1 && row[index]) {
@@ -406,17 +405,21 @@ const App: React.FC<AppProps> = ({ title }) => {
 
       {selectedTab === "export" ? (
         <>
-          <Button
-            appearance="primary"
-            onClick={extractComponents}
-            className={styles.button}
-          >
+          <Button appearance="primary" onClick={extractComponents} className={styles.button}>
             Create BOM
           </Button>
           {jsonResult && (
             <div>
-              <textarea value={jsonResult} readOnly className={styles.textarea} />
-              <button onClick={copyToClipboard}>Copy to Clipboard</button>
+              <textarea
+                value={jsonResult}
+                readOnly
+                className={styles.textarea}
+                onFocus={(e) => setTimeout(() => e.target.select(), 0)}
+                aria-label="BOM Export Data"
+              />
+              <Button onClick={copyToClipboard} className={styles.button}>
+                Copy to Clipboard
+              </Button>
             </div>
           )}
         </>
@@ -427,6 +430,8 @@ const App: React.FC<AppProps> = ({ title }) => {
             onChange={handleImportDataChange}
             className={styles.importTextarea}
             placeholder="Paste JSON data here..."
+            onFocus={(e) => setTimeout(() => e.target.select(), 0)}
+            aria-label="BOM Import Data"
           />
           <div className={styles.checkboxContainer}>
             {availableFields.map((field) => (
