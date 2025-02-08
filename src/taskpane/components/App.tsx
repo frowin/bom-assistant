@@ -223,6 +223,18 @@ const App: React.FC<AppProps> = () => {
         const dataRange = sheet.getRangeByIndexes(headerRow, 0, 100, lastColumn);
         dataRange.load("values");
         await context.sync();
+
+        // Get original headers to identify read-only columns
+        const originalHeaders = dataRange.values[0];
+
+        // Mark read-only columns in light grey
+        originalHeaders.forEach((header, columnIndex) => {
+          if (String(header).startsWith("_")) {
+            const columnRange = sheet.getRangeByIndexes(headerRow + 1, columnIndex, 100, 1);
+            columnRange.format.fill.color = "#F5F5F5"; // Light grey for read-only columns
+          }
+        });
+
         // Color the header row
         const headerRange = sheet.getRangeByIndexes(headerRow, 0, 1, lastColumn);
         await context.sync();
@@ -274,12 +286,21 @@ const App: React.FC<AppProps> = () => {
             const updatedRowRange = sheet.getRangeByIndexes(actualRowIndex, 0, 1, lastColumn);
             updatedRowRange.format.fill.color = "#E2EFDA";
 
+            // Get original header values (not lowercase) for underscore check
+            const originalHeaders = dataRange.values[0];
+
             Object.keys(selectedFields).forEach((field) => {
               if (selectedFields[field]) {
                 const headerIndex = headers.findIndex((h) => h === field.toLowerCase());
                 if (headerIndex !== -1) {
-                  const range = sheet.getRangeByIndexes(actualRowIndex, headerIndex, 1, 1);
-                  range.values = [[item[field as keyof ImportData]]];
+                  // Check if the header starts with underscore
+                  const originalHeader = originalHeaders[headerIndex];
+                  if (!String(originalHeader).startsWith("_")) {
+                    const range = sheet.getRangeByIndexes(actualRowIndex, headerIndex, 1, 1);
+                    range.values = [[item[field as keyof ImportData]]];
+                  } else {
+                    addDebugLog(`Skipping column ${field} as it is read-only.`);
+                  }
                 }
               }
             });
