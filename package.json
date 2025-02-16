@@ -1,6 +1,7 @@
 {
   "name": "office-addin-taskpane-react",
-  "version": "0.0.1",
+  "version": "0.1.0",
+  "date": "2025-02-16",
   "repository": {
     "type": "git",
     "url": "https://github.com/OfficeDev/Office-Addin-TaskPane-React.git"

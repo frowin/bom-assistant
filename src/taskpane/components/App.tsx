@@ -1,5 +1,6 @@
 import * as React from "react";
 import { makeStyles, Button, Tab, TabList, SelectTabEvent, SelectTabData } from "@fluentui/react-components";
+import packageJson from "../../../package.json";
 
 interface AppProps {
   title: string;
@@ -452,6 +453,10 @@ const App: React.FC<AppProps> = () => {
 
   return (
     <div className={styles.root}>
+      <h1>BOM Assistant </h1>
+      <p>
+        Version {packageJson.version} (updated at {packageJson.date})
+      </p>
       <TabList selectedValue={selectedTab} onTabSelect={handleTabSelect}>
         <Tab value="export">Export BOM</Tab>
         <Tab value="import">Update BOM</Tab>
